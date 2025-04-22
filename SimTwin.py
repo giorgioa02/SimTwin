@@ -114,6 +114,60 @@ def extract_control_flow_sequence(ast_tree):
     control_flow_nodes = (ast.If, ast.For, ast.While, ast.Try, ast.Return)
     return [type(node).__name__ for node in ast.walk(ast_tree) if isinstance(node, control_flow_nodes)]
 
+# =============================
+# Input/Output Classification
+# =============================
+def extract_io_pattern(ast_tree):
+    inputs = set()
+    outputs = set()
+    
+    for node in ast.walk(ast_tree):
+        if isinstance(node, ast.arg):
+            inputs.add(node.arg)
+        elif isinstance(node, ast.Return):
+            if isinstance(node.value, ast.Name):
+                outputs.add(node.value.id)
+            elif isinstance(node, ast.Return):
+                outputs.add('implicit_return')
+    
+    return inputs, outputs
+
+def analyze_runtime_behavior(func1, func2):
+    def compile_and_exec(code):
+        tree = ast.parse(code)
+        func_name = tree.body[0].name
+        compiled = compile(code, "<string>", "exec")
+        namespace = {}
+        exec(compiled, namespace)
+        return namespace[func_name]
+
+    func1 = compile_and_exec(code1)
+    func2 = compile_and_exec(code2)
+
+    test_inputs = [0, 1, 5, 10]
+    results1 = [func1(i) for i in test_inputs]
+    results2 = [func2(i) for i in test_inputs]
+    return results1 == results2
+
+def identify_computational_pattern(ast_tree):
+    patterns = []
+    for node in ast.walk(ast_tree):
+        if isinstance(node, ast.For):
+            patterns.append('iteration')
+        elif isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == node.func.id:
+            patterns.append('recursion')
+    return patterns
+
+def io_similarity(io1, io2):
+    """Computes similarity between two I/O patterns."""
+    inputs1, outputs1 = io1
+    inputs2, outputs2 = io2
+    
+    input_sim = 1 if len(inputs1) == len(inputs2) else 0
+    output_sim = 1 if ('implicit_return' in outputs1 or 'implicit_return' in outputs2) or outputs1 == outputs2 else 0
+    
+    return (input_sim + output_sim) / 2
+
 
 # =============================
 # Determine Clone Type
@@ -154,9 +208,24 @@ def detect_clone_type(structure_match, var_match, code1, code2):
         # If they share operators and the ASTs aren't wildly different (node_diff <= 5)
         if score <= 4:
             return "Type 3"
+    
+
+    # Check for Type 4 clones
+    tree1 = parse_ast(code1)
+    tree2 = parse_ast(code2)
+    io1 = extract_io_pattern(tree1)
+    io2 = extract_io_pattern(tree2)
+    io_sim = io_similarity(io1, io2)
+    
+    runtime_match = analyze_runtime_behavior(code1, code2)
+
+    pattern1 = identify_computational_pattern(tree1)
+    pattern2 = identify_computational_pattern(tree2)
+    
+    if io_sim > 0.7 and runtime_match and pattern1 != pattern2:  # You can adjust this threshold
+        return "Type 4"
 
     return "No Clone"
-
 
 # =============================
 # Main Execution
@@ -197,6 +266,15 @@ if __name__ == "__main__":
         print("\n")
         print("Semantic Summary 1:", summarize_logic(ast1))
         print("Semantic Summary 2:", summarize_logic(ast2))
+        
+        # Add I/O pattern comparison
+        io1 = extract_io_pattern(ast1)
+        io2 = extract_io_pattern(ast2)
+        io_sim = io_similarity(io1, io2)
+        print("\n--- I/O Pattern Comparison ---")
+        print("I/O Pattern 1:", io1)
+        print("I/O Pattern 2:", io2)
+        print("I/O Similarity Score:", io_sim)
 
         if final_result:
             print("\nVerified Clone Match:", True)
