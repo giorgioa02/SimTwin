@@ -26,7 +26,7 @@ pip install -r requirements.txt
 To run the code clone detection:
 
 ```bash
-python3 CCDv1.py
+python3 CCDv1.py T2_samples/func1.py T2_samples/func2.py
 ```
 
 Make sure your virtual environment is activated before running the script.
