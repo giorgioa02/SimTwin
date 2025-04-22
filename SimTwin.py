@@ -6,6 +6,48 @@ import sys                              # Handles command-line file inputs
 from z3 import Solver, Int, sat         # SMT solver for symbolic variable reasoning
 
 # =============================
+# Summarize Logic
+# =============================
+def summarize_logic(ast_tree):
+    """Summarizes logic in terms of key constructs used."""
+    summary = {
+        'binop': 0,
+        'assign': 0,
+        'return': 0,
+        'loop': 0,
+        'if': 0,
+        'call': 0,
+        'listcomp': 0
+    }
+
+    for node in ast.walk(ast_tree):
+        if isinstance(node, ast.BinOp):
+            summary['binop'] += 1
+        elif isinstance(node, ast.Assign):
+            summary['assign'] += 1
+        elif isinstance(node, ast.Return):
+            summary['return'] += 1
+        elif isinstance(node, (ast.For, ast.While)):
+            summary['loop'] += 1
+        elif isinstance(node, ast.If):
+            summary['if'] += 1
+        elif isinstance(node, ast.Call):
+            summary['call'] += 1
+        elif isinstance(node, ast.ListComp):
+            summary['listcomp'] += 1
+
+    return summary
+
+# =============================
+# Similarity Score
+# =============================
+def logic_similarity_score(summary1, summary2):
+    """Computes a similarity score between two summaries."""
+    keys = summary1.keys()
+    diffs = [abs(summary1[k] - summary2[k]) for k in keys]
+    return sum(diffs)
+
+# =============================
 # AST Parsing
 # =============================
 def parse_ast(code):
@@ -65,6 +107,15 @@ def check_variable_consistency(code1, code2):
     return solver.check() == sat
 
 # =============================
+# Control Flow Shape Comparison
+# =============================
+def extract_control_flow_sequence(ast_tree):
+    """Returns a list of control flow node types in order."""
+    control_flow_nodes = (ast.If, ast.For, ast.While, ast.Try, ast.Return)
+    return [type(node).__name__ for node in ast.walk(ast_tree) if isinstance(node, control_flow_nodes)]
+
+
+# =============================
 # Determine Clone Type
 # =============================
 def identifiers_exact_match(code1, code2):
@@ -88,13 +139,23 @@ def detect_clone_type(structure_match, var_match, code1, code2):
 
         # Collect total node count difference
         node_diff = abs(sum(1 for _ in ast.walk(tree1)) - sum(1 for _ in ast.walk(tree2)))
+        
+        summary1 = summarize_logic(tree1)
+        summary2 = summarize_logic(tree2)
+        
+        score = logic_similarity_score(summary1, summary2)
+        
+        cf_seq1 = extract_control_flow_sequence(tree1)
+        cf_seq2 = extract_control_flow_sequence(tree2)
+        
+        print(cf_seq1)
+        print(cf_seq2)
 
         # If they share operators and the ASTs aren't wildly different (node_diff <= 5)
-        if ops1 & ops2 and node_diff <= 5:
+        if score <= 4:
             return "Type 3"
 
     return "No Clone"
-
 
 
 # =============================
@@ -132,6 +193,10 @@ if __name__ == "__main__":
         print("--- AST Comparison ---")
         print("Structurally Similar:", structure_match)
         print("Variable Mapping Consistent:", variable_match)
+        print("Logic Similarity Score:", logic_similarity_score(summarize_logic(ast1), summarize_logic(ast2)))
+        print("\n")
+        print("Semantic Summary 1:", summarize_logic(ast1))
+        print("Semantic Summary 2:", summarize_logic(ast2))
 
         if final_result:
             print("\nVerified Clone Match:", True)
