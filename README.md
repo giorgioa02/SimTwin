@@ -7,7 +7,7 @@ This tool performs code clone detection using Z3 SMT solver for symbolic reasoni
 ### 1. Clone the repository
 ```bash
 git clone ...
-cd code-clone-tool
+cd SimTwin
 ```
 
 ### 2. Create and activate the virtual environment
@@ -26,7 +26,7 @@ pip install -r requirements.txt
 To run the code clone detection:
 
 ```bash
-python3 CCDv1.py T2_samples/func1.py T2_samples/func2.py
+python3 SimTwin.py T2_samples/func1.py T2_samples/func2.py
 ```
 
 Make sure your virtual environment is activated before running the script.
