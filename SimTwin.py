@@ -202,8 +202,13 @@ def detect_clone_type(structure_match, var_match, code1, code2):
         cf_seq1 = extract_control_flow_sequence(tree1)
         cf_seq2 = extract_control_flow_sequence(tree2)
         
+        print("\n")
+        print("--- Dev Insights ---")
+        print("Control Flow:")
+        
         print(cf_seq1)
         print(cf_seq2)
+        print("")
 
         # If they share operators and the ASTs aren't wildly different (node_diff <= 5)
         if score <= 4:
@@ -251,30 +256,34 @@ if __name__ == "__main__":
         print(f"Comparing: {file1_path} <==> {file2_path}")
         print("\n--- Raw Code Snippets ---")
         print(f"Code 1:\n{code1.strip()}\n")
-        print(f"Code 2:\n{code2.strip()}\n")
+        print(f"Code 2:\n{code2.strip()}")
 
         # Run checks
         structure_match = ast_structure_match(ast1, ast2)
         variable_match = check_variable_consistency(code1, code2)
         clone_type = detect_clone_type(structure_match, variable_match, code1, code2)
         final_result = clone_type != "No Clone"
-
-        print("--- AST Comparison ---")
-        print("Structurally Similar:", structure_match)
-        print("Variable Mapping Consistent:", variable_match)
+        
+        print("Logic Similarity:")
         print("Logic Similarity Score:", logic_similarity_score(summarize_logic(ast1), summarize_logic(ast2)))
-        print("\n")
         print("Semantic Summary 1:", summarize_logic(ast1))
         print("Semantic Summary 2:", summarize_logic(ast2))
+        print("")
         
         # Add I/O pattern comparison
         io1 = extract_io_pattern(ast1)
         io2 = extract_io_pattern(ast2)
         io_sim = io_similarity(io1, io2)
-        print("\n--- I/O Pattern Comparison ---")
+        print("I/O Pattern Comparison:")
         print("I/O Pattern 1:", io1)
         print("I/O Pattern 2:", io2)
-        print("I/O Similarity Score:", io_sim)
+        # print("I/O Similarity Score:", io_sim)
+        print("")
+
+        print("--- AST Comparison ---")
+        print("Structurally Similar:", structure_match)
+        print("Variable Mapping Consistent:", variable_match)
+        
 
         if final_result:
             print("\nVerified Clone Match:", True)
