@@ -277,7 +277,7 @@ if __name__ == "__main__":
         print("I/O Pattern Comparison:")
         print("I/O Pattern 1:", io1)
         print("I/O Pattern 2:", io2)
-        # print("I/O Similarity Score:", io_sim)
+        print("I/O Similarity Score:", io_sim)
         print("")
 
         print("--- AST Comparison ---")
