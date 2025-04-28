@@ -252,20 +252,24 @@ def detect_clone_type(structure_match, var_match, code1, code2):
     cf_seq1 = extract_control_flow_sequence(tree1)
     cf_seq2 = extract_control_flow_sequence(tree2)
 
+    # Early No Clone check
     if logic_diff > 4 and io_sim < 0.8:
         return "No Clone"
 
+    # Type 1 and Type 2 detection (original)
     if structure_match and var_match:
-        if identifiers_exact_match(code1, code2) or check_arithmetic_equivalence(code1, code2):
+        if identifiers_exact_match(code1, code2):
             return "Type 1"
         else:
             return "Type 2"
 
+    # Type 3 detection (updated)
     if var_match:
         cf_length_diff = abs(len(cf_seq1) - len(cf_seq2))
-        if logic_diff <= 4 and io_sim >= 0.8 and cf_length_diff <= 2:
+        if (logic_diff <= 4 and io_sim >= 0.8 and cf_length_diff <= 2) or check_arithmetic_equivalence(code1, code2):
             return "Type 3"
 
+    # Type 4 detection
     try:
         runtime_match = analyze_runtime_behavior(code1, code2)
         pattern1 = identify_computational_pattern(tree1)
@@ -277,6 +281,7 @@ def detect_clone_type(structure_match, var_match, code1, code2):
         pass
 
     return "No Clone"
+
 
 # =============================
 # Main Execution
