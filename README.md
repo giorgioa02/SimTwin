@@ -41,3 +41,51 @@ deactivate
 ---
 
 **Note:** Ensure you have Python 3 installed on your machine.
+
+---
+
+# Example Test Cases
+
+Here are some example comparisons you can run to validate the tool:
+
+### ******* TYPE 1 EXAMPLES *******
+```bash
+python3 SimTwin.py T1_samples/func0.py T1_samples/func1.py
+python3 SimTwin.py T1_samples/func1.py T1_samples/func2.py
+python3 SimTwin.py T1_samples/func3.py T1_samples/func4.py
+```
+
+### ******* TYPE 2 EXAMPLES *******
+```bash
+python3 SimTwin.py T2_samples/func1.py T2_samples/func2.py
+python3 SimTwin.py T2_samples/func3.py T2_samples/func4.py
+```
+
+### ******* TYPE 3 EXAMPLES *******
+```bash
+python3 SimTwin.py T3_samples/func1.py T3_samples/func2a.py
+python3 SimTwin.py T3_samples/func1.py T3_samples/func2b.py
+python3 SimTwin.py T3_samples/func2a.py T3_samples/func2b.py
+
+python3 SimTwin.py T3_samples/func3.py T3_samples/func4.py
+
+python3 SimTwin.py T3_samples/func5.py T3_samples/func6.py
+python3 SimTwin.py T3_samples/func5.py T3_samples/func7.py
+python3 SimTwin.py T3_samples/func5.py T3_samples/func8.py
+python3 SimTwin.py T3_samples/func6.py T3_samples/func7.py
+python3 SimTwin.py T3_samples/func6.py T3_samples/func8.py
+python3 SimTwin.py T3_samples/func7.py T3_samples/func8.py
+```
+
+### ******* TYPE 4 EXAMPLES *******
+```bash
+python3 SimTwin.py T4_samples/func1.py T4_samples/func2.py
+python3 SimTwin.py T4_samples/func3.py T4_samples/func4.py
+```
+
+### ****** NO CLONE EXAMPLES ******
+```bash
+python3 SimTwin.py T1_samples/func1.py T4_samples/func2.py
+python3 SimTwin.py T1_samples/func1.py T4_samples/func4.py
+python3 SimTwin.py T1_samples/func1.py T3_samples/func5.py
+```

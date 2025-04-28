@@ -9,7 +9,6 @@ from z3 import Solver, Int, sat
 # =============================
 # Helper Functions
 # =============================
-
 def print_section_title(title, width=60):
     """Prints a centered section title with = padding."""
     title = f" {title} "
