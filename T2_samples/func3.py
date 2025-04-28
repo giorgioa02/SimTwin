@@ -1,2 +1,2 @@
-def sum_values(x, y):
-   return x + (- y)
+def subtract_numbers(a, b):
+    return a - b
