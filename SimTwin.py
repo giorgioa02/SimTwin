@@ -1,15 +1,26 @@
 # =============================
 # Imports
 # =============================
-import ast                              # Parses Python code into Abstract Syntax Trees (ASTs)
-import sys                              # Handles command-line file inputs
-from z3 import Solver, Int, sat         # SMT solver for symbolic variable reasoning
+import ast
+import sys
+import inspect
+from z3 import Solver, Int, sat
+
+# =============================
+# Helper Functions
+# =============================
+
+def print_section_title(title, width=60):
+    """Prints a centered section title with = padding."""
+    title = f" {title} "
+    side_len = (width - len(title)) // 2
+    line = "=" * side_len + title + "=" * (width - side_len - len(title))
+    print("\n" + line)
 
 # =============================
 # Summarize Logic
 # =============================
 def summarize_logic(ast_tree):
-    """Summarizes logic in terms of key constructs used."""
     summary = {
         'binop': 0,
         'assign': 0,
@@ -42,7 +53,6 @@ def summarize_logic(ast_tree):
 # Similarity Score
 # =============================
 def logic_similarity_score(summary1, summary2):
-    """Computes a similarity score between two summaries."""
     keys = summary1.keys()
     diffs = [abs(summary1[k] - summary2[k]) for k in keys]
     return sum(diffs)
@@ -51,14 +61,12 @@ def logic_similarity_score(summary1, summary2):
 # AST Parsing
 # =============================
 def parse_ast(code):
-    """Parses a Python function into an AST."""
     return ast.parse(code).body[0]
 
 # =============================
 # Structural Equivalence Checker
 # =============================
 def ast_structure_match(ast1, ast2):
-    """Checks if two ASTs have the same structure, ignoring names."""
     if type(ast1) != type(ast2):
         return False
 
@@ -93,7 +101,6 @@ def ast_structure_match(ast1, ast2):
 # Variable Mapping Consistency Checker
 # =============================
 def check_variable_consistency(code1, code2):
-    """Uses Z3 to check if variables in two code snippets maintain consistency."""
     tree1, tree2 = parse_ast(code1), parse_ast(code2)
     var_map = {}
     solver = Solver()
@@ -110,7 +117,6 @@ def check_variable_consistency(code1, code2):
 # Control Flow Shape Comparison
 # =============================
 def extract_control_flow_sequence(ast_tree):
-    """Returns a list of control flow node types in order."""
     control_flow_nodes = (ast.If, ast.For, ast.While, ast.Try, ast.Return)
     return [type(node).__name__ for node in ast.walk(ast_tree) if isinstance(node, control_flow_nodes)]
 
@@ -120,19 +126,19 @@ def extract_control_flow_sequence(ast_tree):
 def extract_io_pattern(ast_tree):
     inputs = set()
     outputs = set()
-    
+
     for node in ast.walk(ast_tree):
         if isinstance(node, ast.arg):
             inputs.add(node.arg)
         elif isinstance(node, ast.Return):
             if isinstance(node.value, ast.Name):
                 outputs.add(node.value.id)
-            elif isinstance(node, ast.Return):
+            else:
                 outputs.add('implicit_return')
-    
+
     return inputs, outputs
 
-def analyze_runtime_behavior(func1, func2):
+def analyze_runtime_behavior(code1, code2):
     def compile_and_exec(code):
         tree = ast.parse(code)
         func_name = tree.body[0].name
@@ -144,9 +150,19 @@ def analyze_runtime_behavior(func1, func2):
     func1 = compile_and_exec(code1)
     func2 = compile_and_exec(code2)
 
-    test_inputs = [0, 1, 5, 10]
-    results1 = [func1(i) for i in test_inputs]
-    results2 = [func2(i) for i in test_inputs]
+    sig1 = inspect.signature(func1)
+    sig2 = inspect.signature(func2)
+
+    max_params = max(len(sig1.parameters), len(sig2.parameters))
+
+    test_inputs = [(i,) * max_params for i in [0, 1, 5, 10]]
+
+    try:
+        results1 = [func1(*inputs) for inputs in test_inputs]
+        results2 = [func2(*inputs) for inputs in test_inputs]
+    except Exception:
+        return False
+
     return results1 == results2
 
 def identify_computational_pattern(ast_tree):
@@ -159,76 +175,56 @@ def identify_computational_pattern(ast_tree):
     return patterns
 
 def io_similarity(io1, io2):
-    """Computes similarity between two I/O patterns."""
     inputs1, outputs1 = io1
     inputs2, outputs2 = io2
-    
+
     input_sim = 1 if len(inputs1) == len(inputs2) else 0
     output_sim = 1 if ('implicit_return' in outputs1 or 'implicit_return' in outputs2) or outputs1 == outputs2 else 0
-    
-    return (input_sim + output_sim) / 2
 
+    return (input_sim + output_sim) / 2
 
 # =============================
 # Determine Clone Type
 # =============================
 def identifiers_exact_match(code1, code2):
-    """Returns True if variable/function names are identical in both snippets."""
     tree1_ids = sorted({node.id for node in ast.walk(parse_ast(code1)) if isinstance(node, ast.Name)})
     tree2_ids = sorted({node.id for node in ast.walk(parse_ast(code2)) if isinstance(node, ast.Name)})
     return tree1_ids == tree2_ids
 
 def detect_clone_type(structure_match, var_match, code1, code2):
+    tree1 = parse_ast(code1)
+    tree2 = parse_ast(code2)
+
+    summary1 = summarize_logic(tree1)
+    summary2 = summarize_logic(tree2)
+    logic_diff = logic_similarity_score(summary1, summary2)
+
+    io1 = extract_io_pattern(tree1)
+    io2 = extract_io_pattern(tree2)
+    io_sim = io_similarity(io1, io2)
+
+    cf_seq1 = extract_control_flow_sequence(tree1)
+    cf_seq2 = extract_control_flow_sequence(tree2)
+
+    if logic_diff > 4 and io_sim < 0.8:
+        return "No Clone"
+
     if structure_match and var_match:
         return "Type 1" if identifiers_exact_match(code1, code2) else "Type 2"
 
     if var_match:
-        # Allow for loose structural similarity
-        tree1 = parse_ast(code1)
-        tree2 = parse_ast(code2)
-
-        # Collect all operators
-        ops1 = {type(node.op) for node in ast.walk(tree1) if isinstance(node, ast.BinOp)}
-        ops2 = {type(node.op) for node in ast.walk(tree2) if isinstance(node, ast.BinOp)}
-
-        # Collect total node count difference
-        node_diff = abs(sum(1 for _ in ast.walk(tree1)) - sum(1 for _ in ast.walk(tree2)))
-        
-        summary1 = summarize_logic(tree1)
-        summary2 = summarize_logic(tree2)
-        
-        score = logic_similarity_score(summary1, summary2)
-        
-        cf_seq1 = extract_control_flow_sequence(tree1)
-        cf_seq2 = extract_control_flow_sequence(tree2)
-        
-        print("\n")
-        print("--- Dev Insights ---")
-        print("Control Flow:")
-        
-        print(cf_seq1)
-        print(cf_seq2)
-        print("")
-
-        # If they share operators and the ASTs aren't wildly different (node_diff <= 5)
-        if score <= 4:
+        if logic_diff <= 4 and io_sim >= 0.8 and cf_seq1 == cf_seq2:
             return "Type 3"
-    
 
-    # Check for Type 4 clones
-    tree1 = parse_ast(code1)
-    tree2 = parse_ast(code2)
-    io1 = extract_io_pattern(tree1)
-    io2 = extract_io_pattern(tree2)
-    io_sim = io_similarity(io1, io2)
-    
-    runtime_match = analyze_runtime_behavior(code1, code2)
+    try:
+        runtime_match = analyze_runtime_behavior(code1, code2)
+        pattern1 = identify_computational_pattern(tree1)
+        pattern2 = identify_computational_pattern(tree2)
 
-    pattern1 = identify_computational_pattern(tree1)
-    pattern2 = identify_computational_pattern(tree2)
-    
-    if io_sim > 0.7 and runtime_match and pattern1 != pattern2:  # You can adjust this threshold
-        return "Type 4"
+        if io_sim > 0.7 and runtime_match and pattern1 != pattern2:
+            return "Type 4"
+    except Exception:
+        pass
 
     return "No Clone"
 
@@ -252,46 +248,51 @@ if __name__ == "__main__":
         ast1 = parse_ast(code1)
         ast2 = parse_ast(code2)
 
-        print("\n===== Clone Verification =====")
+        print_section_title("Clone Verification")
         print(f"Comparing: {file1_path} <==> {file2_path}")
-        print("\n--- Raw Code Snippets ---")
+
+        print_section_title("Raw Code Snippets")
         print(f"Code 1:\n{code1.strip()}\n")
         print(f"Code 2:\n{code2.strip()}")
 
-        # Run checks
         structure_match = ast_structure_match(ast1, ast2)
         variable_match = check_variable_consistency(code1, code2)
-        clone_type = detect_clone_type(structure_match, variable_match, code1, code2)
-        final_result = clone_type != "No Clone"
-        
-        print("Logic Similarity:")
-        print("Logic Similarity Score:", logic_similarity_score(summarize_logic(ast1), summarize_logic(ast2)))
-        print("Semantic Summary 1:", summarize_logic(ast1))
-        print("Semantic Summary 2:", summarize_logic(ast2))
-        print("")
-        
-        # Add I/O pattern comparison
+        summary1 = summarize_logic(ast1)
+        summary2 = summarize_logic(ast2)
+        logic_score = logic_similarity_score(summary1, summary2)
+        cf_seq1 = extract_control_flow_sequence(ast1)
+        cf_seq2 = extract_control_flow_sequence(ast2)
         io1 = extract_io_pattern(ast1)
         io2 = extract_io_pattern(ast2)
         io_sim = io_similarity(io1, io2)
-        print("I/O Pattern Comparison:")
+
+        clone_type = detect_clone_type(structure_match, variable_match, code1, code2)
+        final_result = clone_type != "No Clone"
+
+        print_section_title("Developer Insights")
+
+        print("--- Control Flow Sequences ---")
+        print("Code 1 Control Flow:", cf_seq1)
+        print("Code 2 Control Flow:", cf_seq2)
+
+        print("\n--- Logic Similarity ---")
+        print("Logic Mismatch Count:", logic_score)
+        print("Semantic Summary 1:", summary1)
+        print("Semantic Summary 2:", summary2)
+
+        print("\n--- I/O Pattern Comparison ---")
         print("I/O Pattern 1:", io1)
         print("I/O Pattern 2:", io2)
         print("I/O Similarity Score:", io_sim)
-        print("")
 
-        print("--- AST Comparison ---")
-        print("Structurally Similar:", structure_match)
-        print("Variable Mapping Consistent:", variable_match)
-        
+        print_section_title("AST Comparison")
+        print(f"Structurally Similar: {structure_match}")
+        print(f"Variable Mapping Consistent: {variable_match}")
 
-        if final_result:
-            print("\nVerified Clone Match:", True)
-        else:
-            print("\nNot a Verified Clone")
+        print_section_title("Clone Detection Result")
+        print(f"Verified Clone Match: {final_result}")
+        print(f"Clone Type Identified: {clone_type}")
+        print("=" * 60 + "\n")
 
-        print("Clone Type Identified:", clone_type)
-        print("================================\n")
-
-    except Exception as e:
+    except (SyntaxError, FileNotFoundError, TypeError) as e:
         print(f"Error: Could not process one or both files.\n{e}")
