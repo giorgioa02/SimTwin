@@ -256,14 +256,14 @@ def detect_clone_type(structure_match, var_match, code1, code2):
     if logic_diff > 4 and io_sim < 0.8:
         return "No Clone"
 
-    # Type 1 and Type 2 detection (original)
+    # Type 1 and Type 2 detection 
     if structure_match and var_match:
         if identifiers_exact_match(code1, code2):
             return "Type 1"
         else:
             return "Type 2"
 
-    # Type 3 detection (updated)
+    # Type 3 detection
     if var_match:
         cf_length_diff = abs(len(cf_seq1) - len(cf_seq2))
         if (logic_diff <= 4 and io_sim >= 0.8 and cf_length_diff <= 2) or check_arithmetic_equivalence(code1, code2):
@@ -281,6 +281,9 @@ def detect_clone_type(structure_match, var_match, code1, code2):
         pass
 
     return "No Clone"
+
+
+
 
 
 # =============================
