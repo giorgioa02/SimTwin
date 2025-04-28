@@ -4,7 +4,7 @@
 import ast
 import sys
 import inspect
-from z3 import Solver, Int, sat
+from z3 import Solver, Int, sat, unsat
 
 # =============================
 # Helper Functions
@@ -183,6 +183,53 @@ def io_similarity(io1, io2):
     return (input_sim + output_sim) / 2
 
 # =============================
+# Z3 Arithmetic Equivalence Checker
+# =============================
+def build_z3_expr(binop_node, var1, var2):
+    """Recursively builds a Z3 expression from a binary operation AST node."""
+    if isinstance(binop_node.op, ast.Add):
+        return var1 + var2
+    elif isinstance(binop_node.op, ast.Sub):
+        return var1 - var2
+    elif isinstance(binop_node.op, ast.Mult):
+        return var1 * var2
+    elif isinstance(binop_node.op, ast.Div):
+        return var1 / var2
+    else:
+        raise ValueError("Unsupported operation for symbolic equivalence")
+
+def check_arithmetic_equivalence(code1, code2):
+    """Uses Z3 to check if two simple return expressions are mathematically equivalent."""
+    try:
+        tree1 = parse_ast(code1)
+        tree2 = parse_ast(code2)
+
+        if not (isinstance(tree1, ast.FunctionDef) and isinstance(tree2, ast.FunctionDef)):
+            return False
+
+        ret1 = next((node for node in ast.walk(tree1) if isinstance(node, ast.Return)), None)
+        ret2 = next((node for node in ast.walk(tree2) if isinstance(node, ast.Return)), None)
+
+        if not (ret1 and ret2 and isinstance(ret1.value, ast.BinOp) and isinstance(ret2.value, ast.BinOp)):
+            return False
+
+        x = Int('x')
+        y = Int('y')
+        a = Int('a')
+        b = Int('b')
+
+        expr1 = build_z3_expr(ret1.value, x, y)
+        expr2 = build_z3_expr(ret2.value, a, b)
+
+        solver = Solver()
+        solver.add(expr1 != expr2)
+
+        return solver.check() == unsat
+
+    except Exception:
+        return False
+
+# =============================
 # Determine Clone Type
 # =============================
 def identifiers_exact_match(code1, code2):
@@ -209,7 +256,10 @@ def detect_clone_type(structure_match, var_match, code1, code2):
         return "No Clone"
 
     if structure_match and var_match:
-        return "Type 1" if identifiers_exact_match(code1, code2) else "Type 2"
+        if identifiers_exact_match(code1, code2) or check_arithmetic_equivalence(code1, code2):
+            return "Type 1"
+        else:
+            return "Type 2"
 
     if var_match:
         cf_length_diff = abs(len(cf_seq1) - len(cf_seq2))
