@@ -213,7 +213,8 @@ def detect_clone_type(structure_match, var_match, code1, code2):
         return "Type 1" if identifiers_exact_match(code1, code2) else "Type 2"
 
     if var_match:
-        if logic_diff <= 4 and io_sim >= 0.8 and cf_seq1 == cf_seq2:
+        cf_length_diff = abs(len(cf_seq1) - len(cf_seq2))
+        if logic_diff <= 4 and io_sim >= 0.8 and cf_length_diff <= 2:
             return "Type 3"
 
     try:
